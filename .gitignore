@@ -33,10 +33,6 @@ bower_components/
 dist/
 build/
 
-# dotenv environment files
-.env
-.env.*.local
-
 # VSCode settings
 .vscode/
 
