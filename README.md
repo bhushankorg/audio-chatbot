@@ -61,6 +61,7 @@ An AI-powered voice chatbot that enables natural conversation through speech rec
    **Backend (.env in project root):**
    ```env
    API_KEY=your_openrouter_api_key_here
+   VITE_BACKEND_URL=http://localhost:8000
    ```
 
 ### Quick Start with Startup Scripts
@@ -150,6 +151,7 @@ chmod +x scripts/start-all.sh
 2. **Text-to-Speech:**
    - AI responses are automatically spoken
    - Use the mute/unmute button to control audio output
+   - **Stop Speaking button appears when chatbot is talking**
    - Individual message playback available in chat history
 
 3. **Dark Mode:**
