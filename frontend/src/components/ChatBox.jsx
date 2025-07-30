@@ -1,7 +1,7 @@
 import 'regenerator-runtime/runtime';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
-import { FaMicrophone, FaMicrophoneSlash, FaVolumeMute, FaVolumeUp, FaUser, FaRobot, FaMoon, FaSun, FaPlay, FaStop } from 'react-icons/fa';
+import { FaMicrophone, FaMicrophoneSlash, FaVolumeMute, FaVolumeUp, FaUser, FaRobot, FaMoon, FaSun, FaPlay, FaStop, FaPlus } from 'react-icons/fa';
 import {
   ChakraProvider,
   Box,
@@ -341,6 +341,8 @@ const ContinuousRecordingToggle = ({ isEnabled, onToggle }) => {
 
 const ChatBoxContent = () => {
   const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition();
+  
+  // All state hooks first - maintain consistent order
   const [thinking, setThinking] = useState(false);
   const [aiText, setAiText] = useState('');
   const [error, setError] = useState('');
@@ -348,11 +350,18 @@ const ChatBoxContent = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [continuousMode, setContinuousMode] = useState(false);
   const [isManuallyListening, setIsManuallyListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [typingResponse, setTypingResponse] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [sessionId, setSessionId] = useState('');
   
-  // Dark mode hooks
+  // Ref for auto-scroll - always after state hooks
+  const chatContainerRef = useRef(null);
+  
+  // Dark mode hooks - always after refs
   const { colorMode, toggleColorMode } = useColorMode();
   
-  // Ultra-smooth color transitions
+  // Color mode values - always after colorMode hook
   const bgColor = useColorModeValue('gray.50', 'gray.900');
   const cardBg = useColorModeValue('gray.100', 'gray.700');
   const cardHoverBg = useColorModeValue('gray.200', 'gray.600');
@@ -364,17 +373,85 @@ const ChatBoxContent = () => {
   const buttonColor = useColorModeValue('white', 'gray.800');
   const textColor = useColorModeValue('gray.800', 'gray.100');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
+  
+  // Responsive values - always after color mode values
+  const flexDirection = useBreakpointValue({ base: 'column', md: 'row' });
+  const cardFlex = useBreakpointValue({ base: 'none', md: '1' });
+  const chatBoxFlex = useBreakpointValue({ base: 'none', md: '3' });
+
+  // Generate unique session ID
+  const generateSessionId = () => {
+    return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  };
+
+  // Initialize session ID on component mount
+  useEffect(() => {
+    if (!sessionId) {
+      const newSessionId = generateSessionId();
+      setSessionId(newSessionId);
+      console.log('Generated new session ID:', newSessionId);
+    }
+  }, []);
+
+  // Typewriter effect function
+  const typeWriter = (text, callback) => {
+    console.log('Typewriter effect starting...');
+    setIsTyping(true);
+    setTypingResponse('');
+    
+    let i = 0;
+    const typingInterval = setInterval(() => {
+      if (i < text.length) {
+        setTypingResponse(prev => prev + text.charAt(i));
+        i++;
+        // Auto-scroll during typing
+        scrollToBottom();
+      } else {
+        console.log('Typewriter effect completed');
+        clearInterval(typingInterval);
+        setIsTyping(false);
+        if (callback) callback();
+      }
+    }, 30); // Typing speed: 30ms per character
+
+    return () => clearInterval(typingInterval);
+  };
+
+  // Auto-scroll function
+  const scrollToBottom = () => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  };
 
   const callCustomAPI = async (message) => {
+    // Stop any ongoing speech and reset state
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+    
     setThinking(true);
     setError('');
+    setTypingResponse('');
+    setIsTyping(false);
+    
+    // Add user message immediately and scroll
+    const userMessage = { user: message, bot: null };
+    setHistory((prevHistory) => [...prevHistory, userMessage]);
+    
+    // Auto-scroll after adding user message
+    setTimeout(scrollToBottom, 100);
+
     try {
-      const response = await fetch("http://10.177.171.61:8000/chat", {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const response = await fetch(`${backendUrl}/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ message })
+        body: JSON.stringify({ 
+          message: message,
+          session_id: sessionId 
+        })
       });
 
       const data = await response.json();
@@ -384,15 +461,60 @@ const ChatBoxContent = () => {
       setThinking(false);
       setAiText(botReply);
 
-      const newHistory = { user: message, bot: botReply };
-      setHistory((prevHistory) => [...prevHistory, newHistory]);
+      // Start both typewriter effect and audio simultaneously
+      const startBothEffects = () => {
+        console.log('Starting both typewriter and audio effects simultaneously');
+        
+        // Start typewriter effect first
+        typeWriter(botReply, () => {
+          // After typing is complete, update the history with the full response
+          setHistory((prevHistory) => {
+            const newHistory = [...prevHistory];
+            newHistory[newHistory.length - 1] = { user: message, bot: botReply };
+            return newHistory;
+          });
 
-      if (!isMuted) {
-        const utterance = new SpeechSynthesisUtterance(botReply);
-        const voices = window.speechSynthesis.getVoices();
-        utterance.rate = 1.3;
-        window.speechSynthesis.speak(utterance);
-      }
+          // Clear typing response after completion
+          setTypingResponse('');
+        });
+
+        // Start audio immediately (simultaneously with typewriter)
+        if (!isMuted) {
+          console.log('Starting audio playback simultaneously...');
+          
+          // Stop any ongoing speech first
+          window.speechSynthesis.cancel();
+          setIsSpeaking(true);
+          
+          const utterance = new SpeechSynthesisUtterance(botReply);
+          utterance.rate = 1.5; 
+          utterance.pitch = 1.0;
+          utterance.volume = 1.0;
+          
+          // Add event listeners to track speaking state
+          utterance.onstart = () => {
+            console.log('Audio started playing');
+            setIsSpeaking(true);
+          };
+          utterance.onend = () => {
+            console.log('Audio finished playing');
+            setIsSpeaking(false);
+          };
+          utterance.onerror = (event) => {
+            console.error('Speech synthesis error:', event);
+            setIsSpeaking(false);
+          };
+          
+          // Speak immediately without voice setup complexity
+          console.log('Actually speaking now...');
+          window.speechSynthesis.speak(utterance);
+        }
+      };
+
+      // Add a small delay before starting effects for more natural conversation flow
+      setTimeout(() => {
+        startBothEffects();
+      }, 1000); // 800ms delay before AI starts responding
 
       return botReply;
     } catch (err) {
@@ -406,7 +528,7 @@ const ChatBoxContent = () => {
   const startPushToTalk = () => {
     if (!continuousMode) {
       resetTranscript();
-      SpeechRecognition.startListening({ continuous: false });
+      SpeechRecognition.startListening({ continuous: true });
     }
   };
 
@@ -416,7 +538,9 @@ const ChatBoxContent = () => {
       // Process the transcript after a short delay
       setTimeout(() => {
         if (transcript && transcript.trim()) {
-          callCustomAPI(transcript);
+          const currentTranscript = transcript;
+          resetTranscript(); // Clear transcript immediately to prevent double processing
+          callCustomAPI(currentTranscript);
         }
       }, 500);
     }
@@ -443,15 +567,18 @@ const ChatBoxContent = () => {
   const handleMuteToggle = () => {
     setIsMuted((prevState) => {
       if (!prevState) {
+        // When muting, stop any current speech
         window.speechSynthesis.cancel();
-      } else {
-        if (aiText) {
-          const utterance = new SpeechSynthesisUtterance(aiText);
-          window.speechSynthesis.speak(utterance);
-        }
+        setIsSpeaking(false);
       }
+      // Don't automatically play when unmuting - only control future playback
       return !prevState;
     });
+  };
+
+  const stopSpeaking = () => {
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
   };
 
   const handleContinuousModeToggle = (enabled) => {
@@ -461,10 +588,16 @@ const ChatBoxContent = () => {
       setIsManuallyListening(false);
     }
   };
-  
-  const flexDirection = useBreakpointValue({ base: 'column', md: 'row' });
-  const cardFlex = useBreakpointValue({ base: 'none', md: '1' });
-  const chatBoxFlex = useBreakpointValue({ base: 'none', md: '3' });
+
+  const clearSession = () => {
+    const newSessionId = generateSessionId();
+    setSessionId(newSessionId);
+    setHistory([]);
+    setTypingResponse('');
+    setIsTyping(false);
+    setError('');
+    console.log('Started new session:', newSessionId);
+  };
 
   // Handle continuous mode auto-processing
   useEffect(() => {
@@ -473,7 +606,6 @@ const ChatBoxContent = () => {
       timeoutId = setTimeout(() => {
         callCustomAPI(transcript).then((response) => {
           if (response) {
-            setAiText(response);
             resetTranscript(); 
           }
         });
@@ -481,6 +613,25 @@ const ChatBoxContent = () => {
     }
     return () => clearTimeout(timeoutId);
   }, [transcript, listening, continuousMode]);
+
+  // Auto-scroll when history updates
+  useEffect(() => {
+    scrollToBottom();
+  }, [history]);
+
+  // Auto-scroll when typing response updates
+  useEffect(() => {
+    if (isTyping) {
+      scrollToBottom();
+    }
+  }, [typingResponse, isTyping]);
+
+  // Auto-scroll when live transcript updates (while speaking)
+  useEffect(() => {
+    if (transcript && listening) {
+      scrollToBottom();
+    }
+  }, [transcript, listening]);
 
   if (!browserSupportsSpeechRecognition) {
     return <p>Your browser doesn't support speech recognition.</p>;
@@ -560,8 +711,8 @@ const ChatBoxContent = () => {
         minW="70%"
         transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
       >
-        <VStack 
-          spacing={4} 
+        <Box
+          ref={chatContainerRef}
           height="70%" 
           overflowY="auto" 
           bg={chatBg} 
@@ -572,87 +723,211 @@ const ChatBoxContent = () => {
           border="1px solid"
           borderColor={borderColor}
           boxShadow={useColorModeValue('md', 'dark-lg')}
+          css={{
+            scrollBehavior: 'smooth',
+            '&::-webkit-scrollbar': {
+              width: '8px',
+            },
+            '&::-webkit-scrollbar-track': {
+              background: useColorModeValue('#f1f1f1', '#2d3748'),
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: useColorModeValue('#c1c1c1', '#4a5568'),
+              borderRadius: '4px',
+            },
+            '&::-webkit-scrollbar-thumb:hover': {
+              background: useColorModeValue('#a8a8a8', '#5a6578'),
+            },
+          }}
         >
-          <Heading 
-            as="h3" 
-            size="md" 
-            textAlign="center"
-            color={textColor}
-            transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
-          >
-            Conversation History
-          </Heading>
-          {history.map((entry, index) => (
-            <React.Fragment key={index}>
-              {/* User Message */}
+          <VStack spacing={4} align="stretch">
+            <Heading 
+              as="h3" 
+              size="md" 
+              textAlign="center"
+              color={textColor}
+              transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+              mb={4}
+            >
+              Conversation History
+            </Heading>
+            
+            {history.map((entry, index) => (
+              <VStack key={index} spacing={2} align="stretch">
+                {/* User Message */}
+                <Box
+                  alignSelf="flex-end"
+                  p={4}
+                  bg={userMsgBg}
+                  borderRadius="lg"
+                  boxShadow={useColorModeValue('sm', 'dark-lg')}
+                  maxWidth="70%"
+                  ml="auto"
+                  display="flex"
+                  alignItems="flex-start"
+                  transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+                  _hover={{ transform: 'scale(1.02)' }}
+                  border="1px solid"
+                  borderColor={borderColor}
+                >
+                  <FaUser style={{ marginRight: '8px', marginTop: '4px', flexShrink: 0 }} />
+                  <Text 
+                    color={useColorModeValue('blue.800', 'blue.100')}
+                    transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+                    whiteSpace="pre-wrap"
+                    wordBreak="break-word"
+                  >
+                    <strong>You:</strong> {entry.user}
+                  </Text>
+                </Box>
+                
+                {/* Bot Message */}
+                {entry.bot && (
+                  <Box
+                    alignSelf="flex-start"
+                    p={4}
+                    bg={botMsgBg}
+                    borderRadius="lg"
+                    boxShadow={useColorModeValue('sm', 'dark-lg')}
+                    maxWidth="70%"
+                    mr="auto"
+                    position="relative"
+                    display="flex"
+                    alignItems="flex-start"
+                    transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+                    _hover={{ transform: 'scale(1.02)' }}
+                    border="1px solid"
+                    borderColor={borderColor}
+                  >
+                    <FaRobot style={{ marginRight: '8px', marginTop: '4px', flexShrink: 0 }} />
+                    <Box flex="1">
+                      <Text 
+                        color={useColorModeValue('green.800', 'green.100')}
+                        transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+                        whiteSpace="pre-wrap"
+                        wordBreak="break-word"
+                      >
+                        <strong>Bot:</strong> {entry.bot}
+                      </Text>
+                    </Box>
+                  </Box>
+                )}
+              </VStack>
+            ))}
+
+            {/* Live Transcript While Speaking */}
+            {transcript && listening && (
               <Box
                 alignSelf="flex-end"
                 p={4}
                 bg={userMsgBg}
                 borderRadius="lg"
                 boxShadow={useColorModeValue('sm', 'dark-lg')}
-                maxWidth="60%"
+                maxWidth="70%"
+                ml="auto"
                 display="flex"
-                alignItems="center"
+                alignItems="flex-start"
                 transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
-                _hover={{ transform: 'scale(1.02)' }}
                 border="1px solid"
                 borderColor={borderColor}
+                opacity="0.8"
               >
-                <FaUser style={{ marginRight: '8px' }} />
+                <FaUser style={{ marginRight: '8px', marginTop: '4px', flexShrink: 0 }} />
                 <Text 
                   color={useColorModeValue('blue.800', 'blue.100')}
                   transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+                  whiteSpace="pre-wrap"
+                  wordBreak="break-word"
                 >
-                  <strong>You:</strong> {entry.user}
+                  <strong>You:</strong> {transcript}
+                  {/* Speaking indicator */}
+                  <Box
+                    as="span"
+                    display="inline-block"
+                    width="2px"
+                    height="20px"
+                    bg="currentColor"
+                    ml="2px"
+                    animation="blink 1s infinite"
+                    verticalAlign="text-bottom"
+                  />
                 </Text>
               </Box>
-              
-              {/* Bot Message */}
+            )}
+
+            {/* Typing Indicator */}
+            {isTyping && (
               <Box
                 alignSelf="flex-start"
                 p={4}
                 bg={botMsgBg}
                 borderRadius="lg"
                 boxShadow={useColorModeValue('sm', 'dark-lg')}
-                maxWidth="60%"
-                mt={2}
+                maxWidth="70%"
+                mr="auto"
                 position="relative"
+                display="flex"
+                alignItems="flex-start"
+                transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+                border="1px solid"
+                borderColor={borderColor}
+                minHeight="60px"
+              >
+                <FaRobot style={{ marginRight: '8px', marginTop: '4px', flexShrink: 0 }} />
+                <Box flex="1">
+                  <Text 
+                    color={useColorModeValue('green.800', 'green.100')}
+                    transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+                    whiteSpace="pre-wrap"
+                    wordBreak="break-word"
+                  >
+                    <strong>Bot:</strong> {typingResponse}
+                    {/* Typing cursor */}
+                    <Box
+                      as="span"
+                      display="inline-block"
+                      width="2px"
+                      height="20px"
+                      bg="currentColor"
+                      ml="1px"
+                      animation="blink 1s infinite"
+                      verticalAlign="text-bottom"
+                    />
+                  </Text>
+                </Box>
+              </Box>
+            )}
+
+            {/* Thinking Indicator */}
+            {thinking && !isTyping && (
+              <Box
+                alignSelf="flex-start"
+                p={4}
+                bg={botMsgBg}
+                borderRadius="lg"
+                boxShadow={useColorModeValue('sm', 'dark-lg')}
+                maxWidth="70%"
+                mr="auto"
                 display="flex"
                 alignItems="center"
                 transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
-                _hover={{ transform: 'scale(1.02)' }}
                 border="1px solid"
                 borderColor={borderColor}
               >
                 <FaRobot style={{ marginRight: '8px' }} />
-                <Text 
-                  color={useColorModeValue('green.800', 'green.100')}
-                  transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
-                >
-                  <strong>Bot:</strong> {entry.bot}
-                </Text>
-
-                <Button
-                  onClick={() => {
-                    if (!isMuted) {
-                      window.speechSynthesis.cancel();
-                    } else {
-                      const utterance = new SpeechSynthesisUtterance(entry.bot);
-                      window.speechSynthesis.speak(utterance);
-                    }
-                    setIsMuted(!isMuted);
-                  }}
-                  variant="ghost"
-                  transition="all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
-                  _hover={{ transform: 'scale(1.1)' }}
-                >
-                  {isMuted ? <FaMicrophoneSlash /> : <FaMicrophone />}
-                </Button>
+                <HStack>
+                  <Spinner size="sm" color="green.500" />
+                  <Text 
+                    color={useColorModeValue('green.800', 'green.100')}
+                    transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+                  >
+                    <strong>Bot:</strong> Thinking...
+                  </Text>
+                </HStack>
               </Box>
-            </React.Fragment>
-          ))}
-        </VStack>
+            )}
+          </VStack>
+        </Box>
         
         <Divider 
           my={4} 
@@ -661,47 +936,27 @@ const ChatBoxContent = () => {
         />
 
         <VStack spacing={4}>
-          {transcript && (
-            <Box 
-              p={4} 
-              bg={inputBg} 
-              borderRadius="lg" 
-              width="100%"
-              transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
-              _hover={{ transform: 'translateY(-2px)' }}
-              border="1px solid"
-              borderColor={borderColor}
-              boxShadow={useColorModeValue('sm', 'dark-lg')}
+          {/* Session Management */}
+          <HStack spacing={4} width="100%">
+            <Button 
+              onClick={clearSession}
+              leftIcon={<FaPlus />}
+              transition="all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+              _hover={{ transform: 'scale(1.05)' }}
+              borderRadius="lg"
+              boxShadow={useColorModeValue('md', 'dark-lg')}
+              variant="outline"
+              colorScheme="purple"
+              size="sm"
             >
-              <Text 
-                color={textColor}
-                transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
-              >
-                <strong>Your question:</strong> {transcript}
+              New Conversation
+            </Button>
+            {sessionId && (
+              <Text fontSize="xs" color={useColorModeValue('gray.500', 'gray.400')}>
+                Session: {sessionId.slice(-8)}
               </Text>
-            </Box>
-          )}
-
-          {aiText && (
-            <Box 
-              p={4} 
-              bg={inputBg} 
-              borderRadius="lg" 
-              width="100%"
-              transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
-              _hover={{ transform: 'translateY(-2px)' }}
-              border="1px solid"
-              borderColor={borderColor}
-              boxShadow={useColorModeValue('sm', 'dark-lg')}
-            >
-              <Text 
-                color={textColor}
-                transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
-              >
-                <strong>AI Response:</strong> {aiText}
-              </Text>
-            </Box>
-          )}
+            )}
+          </HStack>
 
           {/* Recording Mode Toggle */}
           <ContinuousRecordingToggle 
@@ -758,6 +1013,26 @@ const ChatBoxContent = () => {
             >
               {isMuted ? 'Unmute' : 'Mute'}
             </Button>
+
+            {/* Stop Speaking Button */}
+            {isSpeaking && (
+              <Button 
+                onClick={stopSpeaking}
+                leftIcon={<FaStop />}
+                transition="all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+                _hover={{ transform: 'scale(1.05)' }}
+                borderRadius="lg"
+                boxShadow={useColorModeValue('md', 'dark-lg')}
+                variant="solid"
+                colorScheme="red"
+                bg="red.500"
+                color="white"
+                animation="pulse 2s infinite"
+                _active={{ transform: 'scale(0.95)' }}
+              >
+                Stop Speaking
+              </Button>
+            )}
           </VStack>
 
           {/* Status Messages */}
@@ -810,7 +1085,7 @@ const ChatBoxContent = () => {
                 color={textColor}
                 transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
               >
-                Thinking...
+                Connecting to AI...
               </Text>
             </HStack>
           )}
@@ -853,6 +1128,11 @@ const ChatBox = () => {
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.7; }
+        }
+
+        @keyframes blink {
+          0%, 50% { opacity: 1; }
+          51%, 100% { opacity: 0; }
         }
       `}</style>
       <ChatBoxContent />
