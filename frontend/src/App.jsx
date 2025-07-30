@@ -14,7 +14,7 @@ const App = () => {
 <ChakraProvider>
     <Box  >
      <Box h={'50px'} bg={'#1a202c'}mt={'5px'} >
-      <Heading   color='white'  verticalAlign={'middle'} textAlign={'center'} > Voice Chatbot</Heading>
+      <Heading   color='white'  verticalAlign={'middle'} textAlign={'center'} > 🎙️ VoiceGenie AI Assistant</Heading>
       </Box> 
     <ChatBox></ChatBox>
     </Box>

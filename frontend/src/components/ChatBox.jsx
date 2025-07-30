@@ -32,6 +32,10 @@ const config = {
 
 const theme = extendTheme({ 
   config,
+  fonts: {
+    heading: `'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`,
+    body: `'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`,
+  },
   styles: {
     global: {
       '*': {
@@ -39,6 +43,7 @@ const theme = extendTheme({
       },
       'html, body': {
         transition: 'background-color 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94), color 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        fontFamily: `'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`,
       },
       // Smooth scrollbar transitions
       '::-webkit-scrollbar': {
@@ -59,13 +64,13 @@ const theme = extendTheme({
 });
 
 const samplePrompts = [
-  'What is Infosys Ltd?',
-  "What's a fun fact to cheer me up?",
-  'Tell me something interesting about black holes?',
-  'Hey buddy, what should I eat for dinner tonight?',
-  'Give me a light-hearted joke!',
-  'What are the benefits of meditation?',
-  'Tell me an interesting fact.',
+  '🏢 What is Infosys Ltd?',
+  "😄 What's a fun fact to cheer me up?",
+  '🌌 Tell me something interesting about black holes?',
+  '🍽️ Hey buddy, what should I eat for dinner tonight?',
+  '😂 Give me a light-hearted joke!',
+  '🧘 What are the benefits of meditation?',
+  '🤔 Tell me an interesting fact.',
 ];
 
 // Enhanced Dark Mode Toggle with ultra-smooth animations
@@ -390,6 +395,15 @@ const ChatBoxContent = () => {
       const newSessionId = generateSessionId();
       setSessionId(newSessionId);
       console.log('Generated new session ID:', newSessionId);
+      
+      // Add initial welcome message
+      setTimeout(() => {
+        const welcomeMessage = {
+          user: null,
+          bot: "👋 Welcome to your AI Voice Assistant! I'm here to help you with questions, conversations, and more. You can speak to me using the microphone button, try the sample prompts on the left, or enable continuous mode for hands-free chatting. What would you like to talk about?"
+        };
+        setHistory([welcomeMessage]);
+      }, 1000);
     }
   }, []);
 
@@ -597,6 +611,15 @@ const ChatBoxContent = () => {
     setIsTyping(false);
     setError('');
     console.log('Started new session:', newSessionId);
+    
+    // Add welcome message after a brief delay
+    setTimeout(() => {
+      const welcomeMessage = {
+        user: null,
+        bot: "👋 Hello! I'm your AI voice assistant. You can speak to me using the microphone button below, click on the sample prompts, or switch to continuous mode for hands-free conversation. How can I help you today?"
+      };
+      setHistory([welcomeMessage]);
+    }, 500);
   };
 
   // Handle continuous mode auto-processing
@@ -668,8 +691,10 @@ const ChatBoxContent = () => {
           textAlign="center"
           color={textColor}
           transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+          fontWeight="600"
+          letterSpacing="tight"
         >
-          Select a Custom Prompt
+          🎯 Get Started with These Ideas
         </Heading>
         {samplePrompts.map((prompt, index) => (
           <Box
@@ -695,6 +720,8 @@ const ChatBoxContent = () => {
               size="md"
               color={textColor}
               transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+              fontWeight="500"
+              lineHeight="1.5"
             >
               {prompt}
             </Text>
@@ -748,38 +775,44 @@ const ChatBoxContent = () => {
               color={textColor}
               transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
               mb={4}
+              fontWeight="600"
+              letterSpacing="tight"
             >
-              Conversation History
+              🤖 AI Voice Assistant
             </Heading>
             
             {history.map((entry, index) => (
               <VStack key={index} spacing={2} align="stretch">
                 {/* User Message */}
-                <Box
-                  alignSelf="flex-end"
-                  p={4}
-                  bg={userMsgBg}
-                  borderRadius="lg"
-                  boxShadow={useColorModeValue('sm', 'dark-lg')}
-                  maxWidth="70%"
-                  ml="auto"
-                  display="flex"
-                  alignItems="flex-start"
-                  transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
-                  _hover={{ transform: 'scale(1.02)' }}
-                  border="1px solid"
-                  borderColor={borderColor}
-                >
-                  <FaUser style={{ marginRight: '8px', marginTop: '4px', flexShrink: 0 }} />
-                  <Text 
-                    color={useColorModeValue('blue.800', 'blue.100')}
+                {entry.user && (
+                  <Box
+                    alignSelf="flex-end"
+                    p={4}
+                    bg={userMsgBg}
+                    borderRadius="lg"
+                    boxShadow={useColorModeValue('sm', 'dark-lg')}
+                    maxWidth="70%"
+                    ml="auto"
+                    display="flex"
+                    alignItems="flex-start"
                     transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
-                    whiteSpace="pre-wrap"
-                    wordBreak="break-word"
+                    _hover={{ transform: 'scale(1.02)' }}
+                    border="1px solid"
+                    borderColor={borderColor}
                   >
-                    <strong>You:</strong> {entry.user}
-                  </Text>
-                </Box>
+                    <FaUser style={{ marginRight: '8px', marginTop: '4px', flexShrink: 0 }} />
+                    <Text 
+                      color={useColorModeValue('blue.800', 'blue.100')}
+                      transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+                      whiteSpace="pre-wrap"
+                      wordBreak="break-word"
+                      fontWeight="500"
+                      lineHeight="1.6"
+                    >
+                      <strong>You:</strong> {entry.user}
+                    </Text>
+                  </Box>
+                )}
                 
                 {/* Bot Message */}
                 {entry.bot && (
@@ -806,6 +839,8 @@ const ChatBoxContent = () => {
                         transition="all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)"
                         whiteSpace="pre-wrap"
                         wordBreak="break-word"
+                        fontWeight="500"
+                        lineHeight="1.6"
                       >
                         <strong>Bot:</strong> {entry.bot}
                       </Text>
@@ -937,7 +972,7 @@ const ChatBoxContent = () => {
 
         <VStack spacing={4}>
           {/* Session Management */}
-          <HStack spacing={4} width="100%">
+          <HStack spacing={4} width="100%" justify="space-between" align="center">
             <Button 
               onClick={clearSession}
               leftIcon={<FaPlus />}
@@ -948,13 +983,23 @@ const ChatBoxContent = () => {
               variant="outline"
               colorScheme="purple"
               size="sm"
+              fontWeight="600"
             >
-              New Conversation
+              New Chat
             </Button>
             {sessionId && (
-              <Text fontSize="xs" color={useColorModeValue('gray.500', 'gray.400')}>
-                Session: {sessionId.slice(-8)}
-              </Text>
+              <Box 
+                px={3} 
+                py={1} 
+                bg={useColorModeValue('gray.100', 'gray.700')} 
+                borderRadius="full"
+                border="1px solid"
+                borderColor={borderColor}
+              >
+                <Text fontSize="xs" color={useColorModeValue('gray.600', 'gray.300')} fontWeight="500">
+                  Session: {sessionId.slice(-8)}
+                </Text>
+              </Box>
             )}
           </HStack>
 
@@ -1106,6 +1151,18 @@ const ChatBoxContent = () => {
 };
 
 const ChatBox = () => {
+  // Add Google Fonts link
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+    
+    return () => {
+      document.head.removeChild(link);
+    };
+  }, []);
+
   return (
     <ChakraProvider theme={theme}>
       <ColorModeScript initialColorMode={theme.config.initialColorMode} />
