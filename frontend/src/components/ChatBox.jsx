@@ -64,13 +64,13 @@ const theme = extendTheme({
 });
 
 const samplePrompts = [
-  '🏢 What is Infosys Ltd?',
-  "😄 What's a fun fact to cheer me up?",
-  '🌌 Tell me something interesting about black holes?',
-  '🍽️ Hey buddy, what should I eat for dinner tonight?',
-  '😂 Give me a light-hearted joke!',
-  '🧘 What are the benefits of meditation?',
-  '🤔 Tell me an interesting fact.',
+  'What is Infosys Ltd?',
+  "What's a fun fact to cheer me up?",
+  'Tell me something interesting about black holes?',
+  'Hey buddy, what should I eat for dinner tonight?',
+  'Give me a light-hearted joke!',
+  'What are the benefits of meditation?',
+  'Tell me an interesting fact.',
 ];
 
 // Enhanced Dark Mode Toggle with ultra-smooth animations
