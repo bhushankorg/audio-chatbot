@@ -369,7 +369,7 @@ const ChatBoxContent = () => {
     setThinking(true);
     setError('');
     try {
-      const response = await fetch("http://localhost:8000/chat", {
+      const response = await fetch("http://10.177.171.61:8000/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
