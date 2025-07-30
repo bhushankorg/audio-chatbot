@@ -12,6 +12,22 @@ API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # In-memory session store: session_id -> list of messages
 chat_sessions: Dict[str, List[Dict[str, str]]] = {}
+default_instructions = {
+    "role": "system",
+    "content": """You are a friendly, helpful AI assistant designed for voice conversations. Follow these guidelines:
+
+1. Keep responses concise but engaging (1-3 sentences typically)
+2. Use a conversational, warm tone like talking to a friend
+3. Be enthusiastic and positive when appropriate
+4. For complex topics, provide clear, digestible explanations
+5. Ask follow-up questions to keep the conversation flowing
+6. Use natural speech patterns that sound good when spoken aloud
+7. Avoid overly technical jargon unless specifically requested
+8. Show personality and humor when appropriate
+9. If asked for longer explanations, provide them but structure them clearly
+
+Remember: Your responses will be read aloud, so prioritize clarity and natural flow."""
+}
 
 def ask_gpt(prompt: str, session_id: str) -> str:
     # return "test signal to avoid the token limits"
@@ -23,6 +39,9 @@ def ask_openrouter(prompt: str, session_id: str) -> str:
         chat_sessions[session_id] = []
 
     # Add user prompt to the session
+    if default_instructions not in chat_sessions[session_id]:
+        chat_sessions[session_id].append(default_instructions)
+
     chat_sessions[session_id].append({
         "role": "user",
         "content": prompt
