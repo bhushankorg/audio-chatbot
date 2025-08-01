@@ -501,7 +501,7 @@ const ChatBoxContent = () => {
           setIsSpeaking(true);
           
           const utterance = new SpeechSynthesisUtterance(botReply);
-          utterance.rate = 1.5; 
+          utterance.rate = 1.1;
           utterance.pitch = 1.0;
           utterance.volume = 1.0;
           
