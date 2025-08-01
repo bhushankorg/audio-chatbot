@@ -456,7 +456,7 @@ const ChatBoxContent = () => {
     setTimeout(scrollToBottom, 100);
 
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const backendUrl = 'http://10.177.171.61:8000';
       const response = await fetch(`${backendUrl}/chat`, {
         method: "POST",
         headers: {
