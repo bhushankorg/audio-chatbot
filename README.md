@@ -38,6 +38,11 @@ An AI-powered voice chatbot that enables natural conversation through speech rec
 - **Conversation Context:** Contextual responses based on chat history
 
 ---
+## Application snapshots
+![ui-snapshot-1.png](data/ui-snapshot-1.png)
+
+![ui-snapshot-2.png](data/ui-snapshot-2.png)
+---
 
 ## Local Testing Guide
 
